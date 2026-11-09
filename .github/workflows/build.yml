@@ -1,0 +1,49 @@
+name: بناء واختبار التطبيق
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: التحقق من سلامة نص القرآن
+        run: python3 tool/verify_quran_data.py
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: إنشاء ملفات Android (إن لم تكن موجودة)
+        run: |
+          if [ ! -d android ]; then
+            flutter create . --platforms=android --project-name islamic_app --org com.example
+          fi
+
+      - name: تثبيت المكتبات
+        run: flutter pub get
+
+      - name: فحص الكود
+        run: flutter analyze --no-fatal-infos
+
+      - name: تشغيل الاختبارات
+        run: flutter test
+
+      - name: بناء APK للتجربة
+        run: flutter build apk --release
+
+      - name: رفع ملف APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
